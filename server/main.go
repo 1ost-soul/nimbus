@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -10,6 +12,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -97,7 +100,7 @@ func main() {
 	ln, err := tls.Listen("tcp", cfg.ListenAddr, &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
-		NextProtos:   []string{"h2"},
+		NextProtos:   []string{"h2", "http/1.1"},
 	})
 	if err != nil {
 		log.Fatalf("listen tcp: %v", err)
@@ -239,6 +242,17 @@ func handleConn(raw net.Conn, cfg *shared.ServerConfig, connID uint32) {
 		return
 	}
 	req := string(buf[:n])
+
+	// CDN / WebSocket 隧道：必须在普通 Web 外壳之前判断。
+	br := bufio.NewReader(io.MultiReader(bytes.NewReader(buf[:n]), tc))
+	bw := bufio.NewWriter(tc)
+	rw := bufio.NewReadWriter(br, bw)
+	if httpReq, e := http.ReadRequest(br); e == nil &&
+		httpReq.URL.Path == "/tunnel" &&
+		strings.EqualFold(httpReq.Header.Get("Upgrade"), "websocket") {
+		serveWebSocket(tc, rw, httpReq, cfg, connID)
+		return
+	}
 
 	// 普通 HTTP → Web 外壳
 	if strings.HasPrefix(req, "GET ") || strings.HasPrefix(req, "POST ") ||

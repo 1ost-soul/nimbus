@@ -7,7 +7,9 @@ Experimental prototype only. It is **not** a production security product and doe
 Local HTTP/SOCKS5 proxy plus a VPS server connected by an encrypted tunnel:
 
 - Transport: TCP + TLS 1.3 (ALPN `h2`, web shell), QUIC/UDP (ALPN `h3`), or HTTP/3 WebTransport via extended CONNECT. Client `transport`: `tcp` / `quic` / `webtransport` / `auto` (default `auto`: TCP -> QUIC -> WebTransport)
-- Session keys: TLS exporter on TCP; PSK + dual nonces via HKDF on QUIC/WebTransport; standard-library AES-GCM frames
+- Client `connection_mode`: `auto` / `direct_tcp` / `direct_quic` / `direct_webtransport` / `cdn`. `cdn` uses `wss://<sni>/tunnel` over CDN ingress; free CDN tiers only carry TCP/WebSocket, so CDN mode is mutually exclusive with QUIC/WebTransport.
+- CDN ingress probing: `cdn_auto_select` (default true) concurrently tests `cdn_candidate_ips` (or a built-in common set) at startup. SNI and certificate verification still use `sni`; only the TCP target is overridden. Results are memory-only. Use `cdn_ca_pem_file` only if the CDN edge certificate needs a custom CA; otherwise system roots are used.
+- Session keys: TLS exporter on direct TCP; PSK + dual nonces via HKDF on QUIC/WebTransport/CDN WebSocket; standard-library AES-GCM frames
 - Authentication: HMAC challenge-response with random nonces and a replay table; failures return a plain 404
 - Local proxy: HTTP CONNECT, SOCKS5 CONNECT, remote DNS
 - Server: ordinary user process on the VPS, no systemd unit

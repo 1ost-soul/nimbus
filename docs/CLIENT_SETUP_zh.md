@@ -55,7 +55,11 @@ nimbus-client.exe -config config.json
   "psk":  "REPLACE_WITH_BASE64_32_BYTE_KEY",
   "ca_pem_file":  "pinned-ca.pem",
   "transport":  "auto",
-  "prefer_family":  "ipv4"
+  "prefer_family":  "ipv4",
+  "connection_mode":  "auto",
+  "cdn_auto_select":  true,
+  "cdn_candidate_ips":  [],
+  "cdn_ca_pem_file":  ""
 }
 ```
 
@@ -69,6 +73,10 @@ nimbus-client.exe -config config.json
 | `ca_pem_file` | 信任锚证书（证书 pinning）；留空则使用系统根证书，生产环境不建议 |
 | `transport` | `tcp` / `quic` / `webtransport` / `auto`，默认 `auto`（TCP → QUIC → WebTransport 依次尝试） |
 | `prefer_family` | `ipv4` / `ipv6` / `auto`，默认 `ipv4`；域名解析后按偏好排序拨号 |
+| `connection_mode` | `auto` / `direct_tcp` / `direct_quic` / `direct_webtransport` / `cdn`，默认 `auto`。留空时由 `transport` 推导 |
+| `cdn_auto_select` | CDN 模式下启动时并发优选入口，默认 `true`；设为 `false` 则直接使用系统 DNS 解析结果 |
+| `cdn_candidate_ips` | CDN 入口 IP 列表；留空时使用内置常见 CDN 任播地址示例 |
+| `cdn_ca_pem_file` | CDN 边缘证书的可选 CA；留空时使用系统根证书。不要复用 `ca_pem_file` 的源站 CA |
 
 ### 地址族偏好如何工作
 
@@ -85,6 +93,14 @@ nimbus-client.exe -config config.json
 - `auto`：先试 TCP，失败再试 QUIC，最后尝试 WebTransport（推荐）
 
 > WebTransport 是独立的 UDP/HTTP/3 监听，通常使用与裸 QUIC 不同的端口。配置 `webtransport_addr` 后，`auto` 才能在该端口上完成最后一步回退。
+
+### CDN 中转模式
+
+- 设 `connection_mode` 为 `cdn`。客户端使用 `wss://<sni>/tunnel` 的 WebSocket 升级请求承载隧道帧。
+- 免费 CDN 只中转 TCP / WebSocket，不支持通用 UDP，因此 CDN 模式与 `quic` / `webtransport` 互斥。
+- `cdn_auto_select=true` 时，客户端启动时并发 TLS 握手测试 `cdn_candidate_ips`，按延迟排序后作为本次运行的拨号入口；结果不会写入配置或日志。
+- 连接时 SNI 与证书校验始终使用 `sni`，只有 TCP 目标地址被优选结果覆盖。
+- CDN 模式下 TLS 终止在 CDN 边缘节点，会话密钥由 PSK + 双 nonce 派生，不再使用源站 TLS exporter；协议帧格式和认证逻辑不变。
 
 ---
 

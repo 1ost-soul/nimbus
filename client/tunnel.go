@@ -34,11 +34,14 @@ func errorKind(err error) string {
 type Tunnel struct {
 	tlsCfg           *tls.Config
 	quicTLSCfg       *tls.Config
+	cdnTLSCfg        *tls.Config
 	serverAddr       string
 	webTransportAddr string // 可选：WebTransport 独立 UDP 地址，留空则复用 serverAddr
 	psk              []byte
 	transport        string // "tcp" / "quic" / "webtransport" / "auto"
 	preferFamily     string // "ipv4" / "ipv6" / "auto"
+	connectionMode   string // "auto" / "direct_tcp" / "direct_quic" / "direct_webtransport" / "cdn"
+	cdnAddrs         []string // 启动时优选出的 CDN 入口，仅内存态
 }
 
 // resolveAddrs 把 server_addr 解析为按地址族排序的候选列表。
@@ -149,6 +152,16 @@ type Conn struct {
 // Dial 按 transport 策略建立连接并完成认证。
 // auto: TCP 优先，失败回退 QUIC。
 func (t *Tunnel) Dial() (*Conn, error) {
+	switch t.connectionMode {
+	case "cdn":
+		return t.dialCDN()
+	case "direct_tcp":
+		return t.dialTCP()
+	case "direct_quic":
+		return t.dialQUIC()
+	case "direct_webtransport":
+		return t.dialWebTransport()
+	}
 	switch t.transport {
 	case "quic":
 		return t.dialQUIC()
