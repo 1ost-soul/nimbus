@@ -6,8 +6,8 @@ Experimental prototype only. It is **not** a production security product and doe
 
 Local HTTP/SOCKS5 proxy plus a VPS server connected by an encrypted tunnel:
 
-- Transport: TCP + TLS 1.3, ALPN `h2`, web shell on the server port
-- Session keys: TLS exporter + standard-library AES-GCM frames
+- Transport: TCP + TLS 1.3 (ALPN `h2`, web shell), QUIC/UDP (ALPN `h3`), or HTTP/3 WebTransport via extended CONNECT. Client `transport`: `tcp` / `quic` / `webtransport` / `auto` (default `auto`: TCP -> QUIC -> WebTransport)
+- Session keys: TLS exporter on TCP; PSK + dual nonces via HKDF on QUIC/WebTransport; standard-library AES-GCM frames
 - Authentication: HMAC challenge-response with random nonces and a replay table; failures return a plain 404
 - Local proxy: HTTP CONNECT, SOCKS5 CONNECT, remote DNS
 - Server: ordinary user process on the VPS, no systemd unit

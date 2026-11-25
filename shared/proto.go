@@ -30,6 +30,9 @@ const (
 	maxFrame = 1 << 20 // 1 MiB
 
 	Magic = "NBFRAME1" // 内部同步标记，非协议名
+
+	// WebTransportMagic 是在 HTTP/3 连接上区分隧道 stream 与普通请求 stream 的 varint 前缀。
+	WebTransportMagic uint64 = 0x9e37
 )
 
 var (

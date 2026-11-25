@@ -120,6 +120,11 @@ func main() {
 		go acceptQUIC(qln, &cfg)
 	}
 
+	// WebTransport + HTTP/3 路径（可选，独立 UDP 监听，不占用 TCP/QUIC 端口）
+	if cfg.WebTransportListenAddr != "" {
+		go startWebTransport(&cfg, cert)
+	}
+
 	var nextID uint32
 	for {
 		conn, err := ln.Accept()
@@ -154,6 +159,12 @@ func handleQUICConn(qconn *quic.Conn, cfg *shared.ServerConfig, connID uint32) {
 		log.Printf("conn=%d quic accept stream: %s", connID, connErrorKind(err))
 		return
 	}
+	serveQUICStream(stream, cfg, connID)
+}
+
+// serveQUICStream 在一条 QUIC stream 上完成认证并进入隧道主循环。
+// 裸 QUIC 与 WebTransport 路径共用。
+func serveQUICStream(stream *quic.Stream, cfg *shared.ServerConfig, connID uint32) {
 	if d, ok := interface{}(stream).(interface{ SetDeadline(time.Time) error }); ok {
 		d.SetDeadline(time.Now().Add(15 * time.Second))
 		defer d.SetDeadline(time.Time{})

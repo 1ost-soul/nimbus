@@ -50,6 +50,7 @@ nimbus-client.exe -config config.json
 {
   "local_addr":  "127.0.0.1:34133",
   "server_addr":  "vpn.example.net:44444",
+  "webtransport_addr":  "vpn.example.net:44445",
   "sni":  "vpn.example.net",
   "psk":  "REPLACE_WITH_BASE64_32_BYTE_KEY",
   "ca_pem_file":  "pinned-ca.pem",
@@ -61,11 +62,12 @@ nimbus-client.exe -config config.json
 | 字段 | 说明 |
 |---|---|
 | `local_addr` | 本地监听地址，默认 `127.0.0.1:34133` |
-| `server_addr` | 服务端域名 + 端口。**建议填域名而不是写死 IP**，这样地址族偏好才能生效 |
+| `server_addr` | TCP / QUIC 服务端域名 + 端口。**建议填域名而不是写死 IP**，这样地址族偏好才能生效 |
+| `webtransport_addr` | 可选：WebTransport 的独立 UDP 域名 + 端口；留空则复用 `server_addr`。若服务端把 WebTransport 放在另一个端口，请填写此字段 |
 | `sni` | TLS SNI，通常与服务端域名一致 |
 | `psk` | 32 字节 base64，必须与服务端完全一致 |
 | `ca_pem_file` | 信任锚证书（证书 pinning）；留空则使用系统根证书，生产环境不建议 |
-| `transport` | `tcp` / `quic` / `auto`，默认 `auto`（TCP 优先，失败回退 QUIC） |
+| `transport` | `tcp` / `quic` / `webtransport` / `auto`，默认 `auto`（TCP → QUIC → WebTransport 依次尝试） |
 | `prefer_family` | `ipv4` / `ipv6` / `auto`，默认 `ipv4`；域名解析后按偏好排序拨号 |
 
 ### 地址族偏好如何工作
@@ -79,7 +81,10 @@ nimbus-client.exe -config config.json
 
 - `tcp`：仅 TCP + TLS 1.3，带 Web 外壳
 - `quic`：仅 UDP/QUIC（ALPN `h3`），纯隧道
-- `auto`：先试 TCP，失败自动回退 QUIC（推荐）
+- `webtransport`：仅 HTTP/3 WebTransport extended CONNECT，走 `webtransport_addr`（未填则走 `server_addr`）
+- `auto`：先试 TCP，失败再试 QUIC，最后尝试 WebTransport（推荐）
+
+> WebTransport 是独立的 UDP/HTTP/3 监听，通常使用与裸 QUIC 不同的端口。配置 `webtransport_addr` 后，`auto` 才能在该端口上完成最后一步回退。
 
 ---
 
@@ -108,3 +113,5 @@ curl --socks5-hostname 127.0.0.1:34133 https://example.com -o NUL -w "SOCKS CODE
 - **认证失败**：检查两端 PSK 是否一致、系统时间是否偏差过大
 - **证书校验失败**：检查 `ca_pem_file` 指向的证书是否与服务端证书链匹配
 - **TCP 不通但 QUIC 通**：把 `transport` 改成 `quic`，并确认 VPS 放通了 UDP 端口
+- **TCP / QUIC 都不通但 WebTransport 通**：把 `transport` 改成 `webtransport`，并确认 `webtransport_addr` 指向服务端 `webtransport_listen_addr`
+- **使用 `auto` 却没有回退到 WebTransport**：检查是否填写了 `webtransport_addr`，以及 VPS 是否放通了该 UDP 端口

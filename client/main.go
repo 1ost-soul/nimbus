@@ -12,13 +12,14 @@ import (
 )
 
 type clientConfig struct {
-	LocalAddr  string `json:"local_addr"`
-	ServerAddr string `json:"server_addr"`
-	SNI        string `json:"sni"`
-	PSK        []byte `json:"psk"`
-	CAPEMFile    string `json:"ca_pem_file"` // 可选：自定义 CA，用于 pinning
-	Transport    string `json:"transport"`   // tcp / quic / auto（默认 auto）
-	PreferFamily string `json:"prefer_family"` // ipv4 / ipv6 / auto（默认 ipv4）
+	LocalAddr        string `json:"local_addr"`
+	ServerAddr       string `json:"server_addr"`
+	WebTransportAddr string `json:"webtransport_addr,omitempty"` // 可选：WebTransport 独立 UDP 地址，留空则复用 server_addr
+	SNI              string `json:"sni"`
+	PSK              []byte `json:"psk"`
+	CAPEMFile        string `json:"ca_pem_file"`   // 可选：自定义 CA，用于 pinning
+	Transport        string `json:"transport"`     // tcp / quic / webtransport / auto（默认 auto）
+	PreferFamily     string `json:"prefer_family"` // ipv4 / ipv6 / auto（默认 ipv4）
 }
 
 var cfg clientConfig
@@ -74,12 +75,13 @@ func main() {
 	log.Printf("dial preference: family=%s transport=%s", preferFamily, transport)
 
 	tunnel := &Tunnel{
-		tlsCfg:       tlsCfg,
-		quicTLSCfg:   quicTLSCfg,
-		serverAddr:   cfg.ServerAddr,
-		psk:          cfg.PSK,
-		transport:    transport,
-		preferFamily: preferFamily,
+		tlsCfg:           tlsCfg,
+		quicTLSCfg:       quicTLSCfg,
+		serverAddr:       cfg.ServerAddr,
+		webTransportAddr: cfg.WebTransportAddr,
+		psk:              cfg.PSK,
+		transport:        transport,
+		preferFamily:     preferFamily,
 	}
 	proxy := &LocalProxy{tunnel: tunnel, addr: cfg.LocalAddr}
 	log.Printf("local proxy listening on %s", cfg.LocalAddr)

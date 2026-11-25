@@ -28,6 +28,10 @@ for f in $(find . -type f | sort); do
   skip=0
   for s in "${SKIP[@]}"; do [ "$f" = "$s" ] && skip=1; done
   [ "$skip" -eq 1 ] && continue
+  # 二进制文件（含 release 压缩包）会出现随机的模式字节串，只检查文本文件。
+  case "$f" in
+    *.zip|*.exe|*.pem|*.pcap|*.png|*.jpg|*.gif) continue ;;
+  esac
   for p in "${PATTERNS[@]}"; do
     if grep -Eqi -- "$p" "$f"; then
       echo "FAIL sensitive pattern '$p' in $f"

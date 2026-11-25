@@ -9,13 +9,13 @@
 
 ## 前置条件
 
-- 一台有公网 IP 的 VPS，安全组/防火墙放通 **TCP 44444** 和 **UDP 44444**（示例端口）
+- 一台有公网 IP 的 VPS，安全组/防火墙放通 **TCP 44444**、**UDP 44444**（裸 QUIC）和 **UDP 44445**（WebTransport，示例端口）
 - 一个指向该 VPS 的域名（示例 `vpn.example.net`），用于 TLS 证书和客户端 SNI
 - TLS 证书与私钥（Let's Encrypt 或自签均可），路径对运行用户可读
 - 一个普通用户（示例 `agent`）；不要用 root 运行
-- 确认 44444 未被其他程序占用：
+- 确认 44444 / 44445 未被其他程序占用：
   ```bash
-  ss -tulpn | grep 44444
+  ss -tulpn | grep -E '44444|44445'
   ```
 
 ---
@@ -58,6 +58,7 @@ openssl rand -base64 32
 {
   "listen_addr": "[::]:44444",
   "quic_listen_addr": ":44444",
+  "webtransport_listen_addr": ":44445",
   "cert_file": "/path/to/fullchain.pem",
   "key_file": "/path/to/privkey.pem",
   "psk": "REPLACE_WITH_BASE64_32_BYTE_KEY",
@@ -71,11 +72,12 @@ openssl rand -base64 32
 |---|---|
 | `listen_addr` | TCP 监听地址。`[::]:44444` 为双栈；若只要 IPv4 用 `0.0.0.0:44444` |
 | `quic_listen_addr` | UDP/QUIC 监听地址。留空或删除则不启用 QUIC |
+| `webtransport_listen_addr` | HTTP/3 WebTransport 独立 UDP 监听地址。留空或删除则不启用 WebTransport；需与裸 QUIC 使用不同端口 |
 | `cert_file` / `key_file` | TLS 证书与私钥路径 |
 | `psk` | 上一步生成的 32 字节 base64 |
 | `web_root_html` | 访问 `/` 时返回的普通网页内容（Web 外壳），可选 |
 
-> TCP 和 UDP 共用 44444 是合法的（不同传输层协议互不冲突）。
+> TCP 和 UDP 共用 44444 是合法的（不同传输层协议互不冲突）。WebTransport 需要额外的 UDP 端口（示例 44445），因为同一 UDP 套接字不能同时承载裸 QUIC 隧道和 HTTP/3 服务。
 
 ---
 
@@ -90,10 +92,10 @@ echo $! > server.pid
 确认监听：
 
 ```bash
-ss -tulpn | grep 44444
+ss -tulpn | grep -E '44444|44445'
 ```
 
-预期同时看到 `tcp LISTEN` 和 `udp UNCONN` 两行。
+预期看到 `tcp LISTEN`（44444）、`udp UNCONN`（44444 裸 QUIC）和 `udp UNCONN`（44445 WebTransport）。
 
 验证 Web 外壳：
 
@@ -111,7 +113,7 @@ curl -k https://vpn.example.net:44444/notfound
 ```bash
 kill "$(cat /home/agent/nimbus/server.pid)"
 # 确认端口释放
-ss -tulpn | grep 44444
+ss -tulpn | grep -E '44444|44445'
 ```
 
 如需回滚到旧版本，直接替换回旧二进制再按第 4 步启动即可。服务端不注册开机自启，重启 VPS 后需手动启动。

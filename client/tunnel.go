@@ -32,12 +32,13 @@ func errorKind(err error) string {
 
 // Tunnel 管理与服务端的一条加密连接
 type Tunnel struct {
-	tlsCfg       *tls.Config
-	quicTLSCfg   *tls.Config
-	serverAddr   string
-	psk          []byte
-	transport    string // "tcp" / "quic" / "auto"
-	preferFamily string // "ipv4" / "ipv6" / "auto"
+	tlsCfg           *tls.Config
+	quicTLSCfg       *tls.Config
+	serverAddr       string
+	webTransportAddr string // 可选：WebTransport 独立 UDP 地址，留空则复用 serverAddr
+	psk              []byte
+	transport        string // "tcp" / "quic" / "webtransport" / "auto"
+	preferFamily     string // "ipv4" / "ipv6" / "auto"
 }
 
 // resolveAddrs 把 server_addr 解析为按地址族排序的候选列表。
@@ -128,14 +129,14 @@ func (t *Tunnel) dialQUICAddr(addr string) (*Conn, error) {
 
 // Conn 一条逻辑子连接（每个 tunnel 连接承载一个 stream，id=1）
 type Conn struct {
-	t       *Tunnel
-	rw      io.ReadWriteCloser // TLS conn (TCP) 或 QUIC stream
-	qconn   *quic.Conn         // 仅 QUIC 路径非空，用于彻底关闭
-	sess    *shared.Session
-	id      uint32
-	inbox   chan []byte
-	closed  chan struct{}
-	once    sync.Once
+	t      *Tunnel
+	rw     io.ReadWriteCloser // TLS conn (TCP) 或 QUIC stream
+	qconn  *quic.Conn         // 仅 QUIC 路径非空，用于彻底关闭
+	sess   *shared.Session
+	id     uint32
+	inbox  chan []byte
+	closed chan struct{}
+	once   sync.Once
 
 	writeMu sync.Mutex
 	readBuf []byte
@@ -148,6 +149,8 @@ func (t *Tunnel) Dial() (*Conn, error) {
 	switch t.transport {
 	case "quic":
 		return t.dialQUIC()
+	case "webtransport":
+		return t.dialWebTransport()
 	case "", "tcp":
 		c, err := t.dialTCP()
 		if err == nil {
@@ -156,16 +159,24 @@ func (t *Tunnel) Dial() (*Conn, error) {
 		if t.transport == "tcp" {
 			return nil, err
 		}
-		// auto 未显式设置时，TCP 失败也回退 QUIC
+		// auto 未显式设置时：TCP -> QUIC -> WebTransport
 		log.Printf("tcp dial failed: %s; falling back to quic", errorKind(err))
-		return t.dialQUIC()
+		if c, e := t.dialQUIC(); e == nil {
+			return c, nil
+		}
+		log.Printf("quic dial failed; falling back to webtransport")
+		return t.dialWebTransport()
 	case "auto":
 		c, err := t.dialTCP()
 		if err == nil {
 			return c, nil
 		}
 		log.Printf("tcp dial failed: %s; falling back to quic", errorKind(err))
-		return t.dialQUIC()
+		if c, e := t.dialQUIC(); e == nil {
+			return c, nil
+		}
+		log.Printf("quic dial failed; falling back to webtransport")
+		return t.dialWebTransport()
 	default:
 		return nil, fmt.Errorf("unknown transport")
 	}

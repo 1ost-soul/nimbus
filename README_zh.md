@@ -11,14 +11,14 @@
 ```
 本地应用
   → 本地 HTTP CONNECT / SOCKS5 代理 (127.0.0.1:34133)
-  → TLS 1.3 外层链路（正常 SNI / ALPN h2，Web 外壳）
+  → TCP+TLS 1.3（h2，Web 外壳）/ QUIC（h3）/ HTTP/3 WebTransport
   → VPS 服务端
   → 目标网站（地址只在加密隧道内出现）
 ```
 
-- 传输：TCP + TLS 1.3（ALPN `h2`，带 Web 外壳）或 QUIC/UDP（ALPN `h3`，纯隧道）；客户端 `transport` 支持 `tcp` / `quic` / `auto`，默认 `auto`（TCP 优先，失败回退 QUIC）
+- 传输：TCP + TLS 1.3（ALPN `h2`，带 Web 外壳）、QUIC/UDP（ALPN `h3`，纯隧道）或 HTTP/3 WebTransport（extended CONNECT）；客户端 `transport` 支持 `tcp` / `quic` / `webtransport` / `auto`，默认 `auto`（TCP → QUIC → WebTransport）
 - 地址族偏好：`prefer_family` 支持 `ipv4` / `ipv6` / `auto`，默认 `ipv4`；域名解析后按偏好排序拨号，字面量地址直接使用
-- 会话密钥：TCP 路径由 TLS exporter 派生，QUIC 路径由 PSK + 双 nonce 经 HKDF 派生；均为标准库 AES-GCM 帧加密
+- 会话密钥：TCP 路径由 TLS exporter 派生，QUIC / WebTransport 路径由 PSK + 双 nonce 经 HKDF 派生；均为标准库 AES-GCM 帧加密
 - 认证：HMAC 挑战-响应 + 随机 nonce + 重放表；失败返回普通 404
 - 本地代理：HTTP CONNECT、SOCKS5 CONNECT、Socks5 远端 DNS
 - 服务端：普通用户进程，不安装 systemd 服务；直接访问 `/` 返回正常网页，未知路径返回 404
@@ -58,8 +58,8 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o build/nimbus-client.exe ./cl
 
 - 复制 `configs/config.example.json` 为本地私有配置，填写真实 `server_addr`、`sni`、`psk`、`ca_pem_file`
 - `server_addr` 建议填域名（如 `vpn.example.net:44444`）而非写死 IP，这样 `prefer_family` 才能按 A/AAAA 记录排序拨号
-- `transport` / `prefer_family` 可省略，默认分别为 `auto` / `ipv4`
-- 复制 `configs/server.example.env` 中字段为 `server.json`，填写服务端监听地址、证书路径与同一 PSK；服务端可选 `quic_listen_addr` 开启 UDP 监听
+- `transport` / `prefer_family` 可省略，默认分别为 `auto` / `ipv4`；`webtransport_addr` 可选，用于为 WebTransport 指定独立 UDP 地址
+- 复制 `configs/server.example.env` 中字段为 `server.json`，填写服务端监听地址、证书路径与同一 PSK；可选 `quic_listen_addr` 开启 UDP 监听，`webtransport_listen_addr` 开启独立 HTTP/3 WebTransport 监听
 - PSK 必须是 **32 字节的 base64**，两端必须一致
 - `ca_pem_file` 指向服务端证书的信任锚（证书 pinning）；生产配置不得设置 `InsecureSkipVerify`
 - **真实配置、PSK、证书、日志不得提交公开仓库**
