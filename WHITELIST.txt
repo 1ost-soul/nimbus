@@ -16,6 +16,7 @@
 - tests/test_proto.py
 - reports/phase5_public.md
 - WHITELIST.txt / check_public.sh
+- LICENSE / THIRD_PARTY_NOTICES.md
 
 绂佹锛堜换浣曟儏鍐典笅涓嶅緱涓婁紶锛夛細
 - answer.md

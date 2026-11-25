@@ -52,3 +52,9 @@ Do not use another local proxy as evidence for connectivity tests.
 ## Limitations
 
 No long-run stability, concurrency stress, or video bitrate testing was performed. The web shell is not a substitute for encryption and is not sufficient by itself for active-probe resistance. The protocol has not been externally audited.
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE`.
+
+Vendored third-party code keeps its own license. See `THIRD_PARTY_NOTICES.md` and `third_party/quic-go-bbr/LICENSE`.
