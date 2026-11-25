@@ -1,0 +1,27 @@
+﻿鍏紑浠撳簱鐧藉悕鍗曪紙浠呬互涓嬫枃浠跺厑璁镐笂浼狅級
+====================================
+
+鍏佽锛?- README.md / README_zh.md
+- design.md锛堣劚鏁忓壇鏈級
+- go.mod
+- client/*.go
+- server/*.go
+- shared/*.go
+- configs/config.example.json
+- configs/server.example.env
+- scripts/deploy.sh
+- scripts/cleanup.sh
+- tools/diag/dialtest.go
+- tests/test_proto.py
+- reports/phase5_public.md
+- WHITELIST.txt / check_public.sh
+
+绂佹锛堜换浣曟儏鍐典笅涓嶅緱涓婁紶锛夛細
+- answer.md
+- aim_b.md
+- configs/client.json / configs/server.json
+- configs/tunnel-ca.pem 鍙婁换浣曡瘉涔?绉侀挜
+- build/ 涓嬬殑浜岃繘鍒?- 浠讳綍 .log / .pid / pcap / 鎶撳寘
+- reports/ 涓嬬殑绉佹湁鎶ュ憡锛坧hase0/phase5/phase6 鍘熷鐗堬級
+- backups/ 鍏ㄩ儴鍐呭
+- 浠讳綍鍖呭惈鐪熷疄鍩熷悕銆佺湡瀹?IP銆丳SK銆佸瘑鐮併€乼oken 鐨勬枃浠?

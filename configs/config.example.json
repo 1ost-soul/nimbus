@@ -1,0 +1,9 @@
+{
+    "local_addr":  "127.0.0.1:34133",
+    "server_addr":  "vpn.example.net:44444",
+    "sni":  "vpn.example.net",
+    "psk":  "REPLACE_WITH_BASE64_32_BYTE_KEY",
+    "ca_pem_file":  "pinned-ca.pem",
+    "transport":  "auto",
+    "prefer_family":  "ipv4"
+}
