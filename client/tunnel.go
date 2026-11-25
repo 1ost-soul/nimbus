@@ -102,10 +102,13 @@ func (t *Tunnel) dialTCPAddr(addr string) (*Conn, error) {
 func (t *Tunnel) dialQUICAddr(addr string) (*Conn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	qconn, err := quic.DialAddr(ctx, addr, t.quicTLSCfg, &quic.Config{
-		HandshakeIdleTimeout: 10 * time.Second,
-	})
+	udpConn, remoteAddr, err := shared.DialUDP(addr)
 	if err != nil {
+		return nil, err
+	}
+	qconn, err := quic.Dial(ctx, udpConn, remoteAddr, t.quicTLSCfg, shared.QUICConfig())
+	if err != nil {
+		udpConn.Close()
 		return nil, err
 	}
 	stream, err := qconn.OpenStreamSync(ctx)

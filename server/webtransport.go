@@ -21,7 +21,12 @@ func startWebTransport(cfg *shared.ServerConfig, cert tls.Certificate) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 	})
-	ln, err := quic.ListenAddr(cfg.WebTransportListenAddr, tlsConf, &quic.Config{})
+	udpConn, err := shared.ListenUDP(cfg.WebTransportListenAddr)
+	if err != nil {
+		log.Printf("listen webtransport udp: %v", err)
+		return
+	}
+	ln, err := quic.Listen(udpConn, tlsConf, shared.QUICConfig())
 	if err != nil {
 		log.Printf("listen webtransport: %v", err)
 		return
@@ -85,12 +90,16 @@ func handleWTConn(qconn *quic.Conn, server *http3.Server, cfg *shared.ServerConf
 		if err != nil {
 			return
 		}
-		v, _ := quicvarint.Peek(st)
-		if v == shared.WebTransportMagic {
-			quicvarint.Read(quicvarint.NewReader(st)) // 消费 magic 前缀
-			go serveQUICStream(st, cfg, connID)
-		} else {
-			go raw.HandleRequestStream(st)
-		}
+		// Peek 会等待 stream 首字节；放到 goroutine 里，避免某条 stream
+		// 数据晚到时阻塞 AcceptStream 循环、挡住后续 stream。
+		go func(s *quic.Stream) {
+			v, _ := quicvarint.Peek(s)
+			if v == shared.WebTransportMagic {
+				quicvarint.Read(quicvarint.NewReader(s)) // 消费 magic 前缀
+				serveQUICStream(s, cfg, connID)
+			} else {
+				raw.HandleRequestStream(s)
+			}
+		}(st)
 	}
 }

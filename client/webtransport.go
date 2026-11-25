@@ -48,10 +48,13 @@ func (t *Tunnel) dialWebTransportAddr(addr string) (*Conn, error) {
 
 	// 复用现有证书 pinning，仅把 ALPN 调整为 HTTP/3 所需
 	tlsConf := http3.ConfigureTLSConfig(t.quicTLSCfg.Clone())
-	qconn, err := quic.DialAddr(ctx, addr, tlsConf, &quic.Config{
-		HandshakeIdleTimeout: 10 * time.Second,
-	})
+	udpConn, remoteAddr, err := shared.DialUDP(addr)
 	if err != nil {
+		return nil, err
+	}
+	qconn, err := quic.Dial(ctx, udpConn, remoteAddr, tlsConf, shared.QUICConfig())
+	if err != nil {
+		udpConn.Close()
 		return nil, err
 	}
 	fail := func(e error) (*Conn, error) {

@@ -12,6 +12,7 @@
 - scripts/deploy.sh
 - scripts/cleanup.sh
 - tools/diag/dialtest.go
+- third_party/quic-go-bbr/** (vendored quic-go BBR fork, production sources only)
 - tests/test_proto.py
 - reports/phase5_public.md
 - WHITELIST.txt / check_public.sh

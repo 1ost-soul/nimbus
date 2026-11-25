@@ -107,11 +107,15 @@ func main() {
 
 	// QUIC + UDP 路径（可选）
 	if cfg.QUICListenAddr != "" {
-		qln, err := quic.ListenAddr(cfg.QUICListenAddr, &tls.Config{
+		udpConn, err := shared.ListenUDP(cfg.QUICListenAddr)
+		if err != nil {
+			log.Fatalf("listen quic udp: %v", err)
+		}
+		qln, err := quic.Listen(udpConn, &tls.Config{
 			Certificates: []tls.Certificate{cert},
 			MinVersion:   tls.VersionTLS13,
 			NextProtos:   []string{"h3"},
-		}, &quic.Config{})
+		}, shared.QUICConfig())
 		if err != nil {
 			log.Fatalf("listen quic: %v", err)
 		}
@@ -206,6 +210,10 @@ func serveQUICStream(stream *quic.Stream, cfg *shared.ServerConfig, connID uint3
 	}
 	if err := sess.WriteFrame(stream, shared.FramePing, []byte{1}); err != nil {
 		return
+	}
+	// 认证阶段结束后立刻清除 deadline，否则 15 秒后整条隧道会被超时打断。
+	if d, ok := interface{}(stream).(interface{ SetDeadline(time.Time) error }); ok {
+		d.SetDeadline(time.Time{})
 	}
 	log.Printf("conn=%d quic authenticated", connID)
 	serveTunnel(stream, sess, cfg, connID)
