@@ -95,8 +95,9 @@ func TestCDNWebSocketHandshake(t *testing.T) {
 		}
 		_ = sess.WriteFrame(ws, shared.FramePing, []byte{1})
 	}}
+	wsPath := shared.DeriveWSPath(psk)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/tunnel" {
+		if r.URL.Path != wsPath {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}

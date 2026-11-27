@@ -96,7 +96,8 @@ nimbus-client.exe -config config.json
 
 ### CDN 中转模式
 
-- 设 `connection_mode` 为 `cdn`。客户端使用 `wss://<sni>/tunnel` 的 WebSocket 升级请求承载隧道帧。
+- 设 `connection_mode` 为 `cdn`。客户端使用 `wss://<sni>/api/events/<hash>` 的 WebSocket 升级请求承载隧道帧，其中 `<hash>` 由 PSK 派生。
+- 路径前缀 `/api/events/` 固定，供 CDN 回源规则匹配；具体路径由 PSK 决定，探测者无法猜测，猜错只会得到普通 404 页面。
 - 免费 CDN 只中转 TCP / WebSocket，不支持通用 UDP，因此 CDN 模式与 `quic` / `webtransport` 互斥。
 - `cdn_auto_select=true` 时，客户端启动时并发 TLS 握手测试 `cdn_candidate_ips`，按延迟排序后作为本次运行的拨号入口；结果不会写入配置或日志。
 - 连接时 SNI 与证书校验始终使用 `sni`，只有 TCP 目标地址被优选结果覆盖。

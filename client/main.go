@@ -50,7 +50,7 @@ func main() {
 	tlsCfg := &tls.Config{
 		MinVersion:         tls.VersionTLS13,
 		ServerName:         cfg.SNI,
-		NextProtos:         []string{"h2"},
+		NextProtos:         []string{"http/1.1"},
 		InsecureSkipVerify: false,
 	}
 	if cfg.CAPEMFile != "" {

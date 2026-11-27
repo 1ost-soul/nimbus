@@ -42,7 +42,7 @@ func (w *rawResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func serveWebSocket(conn net.Conn, rw *bufio.ReadWriter, req *http.Request, cfg *shared.ServerConfig, connID uint32) {
 	wsServer := websocket.Server{
 		Handshake: func(_ *websocket.Config, r *http.Request) error {
-			if r.URL.Path != "/tunnel" {
+			if r.URL.Path != shared.DeriveWSPath(cfg.PSK) {
 				return fmt.Errorf("forbidden path")
 			}
 			return nil

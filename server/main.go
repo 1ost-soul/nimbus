@@ -100,7 +100,7 @@ func main() {
 	ln, err := tls.Listen("tcp", cfg.ListenAddr, &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
-		NextProtos:   []string{"h2", "http/1.1"},
+		NextProtos:   []string{"http/1.1"},
 	})
 	if err != nil {
 		log.Fatalf("listen tcp: %v", err)
@@ -248,7 +248,7 @@ func handleConn(raw net.Conn, cfg *shared.ServerConfig, connID uint32) {
 	bw := bufio.NewWriter(tc)
 	rw := bufio.NewReadWriter(br, bw)
 	if httpReq, e := http.ReadRequest(br); e == nil &&
-		httpReq.URL.Path == "/tunnel" &&
+		strings.HasPrefix(httpReq.URL.Path, shared.WSPathPrefix) &&
 		strings.EqualFold(httpReq.Header.Get("Upgrade"), "websocket") {
 		serveWebSocket(tc, rw, httpReq, cfg, connID)
 		return

@@ -17,8 +17,10 @@
 ```
 
 - 传输：TCP + TLS 1.3（ALPN `h2`，带 Web 外壳）、QUIC/UDP（ALPN `h3`，纯隧道）或 HTTP/3 WebTransport（extended CONNECT）；客户端 `transport` 支持 `tcp` / `quic` / `webtransport` / `auto`，默认 `auto`（TCP → QUIC → WebTransport）
+- 连接模式：`connection_mode` 支持 `auto` / `direct_tcp` / `direct_quic` / `direct_webtransport` / `cdn`。`cdn` 使用 `wss://<sni>/api/events/<psk派生hash>` 通过 CDN WebSocket 入口中转；免费 CDN 只支持 TCP/WebSocket，因此 CDN 与 QUIC/WebTransport 互斥。
+- CDN 优选：`cdn_auto_select` 默认 `true`，启动时并发探测 `cdn_candidate_ips`（留空则用内置常见候选）并按延迟排序；SNI/证书校验仍使用 `sni`，仅 TCP 目标 IP 被覆盖；结果只保存在内存。`cdn_ca_pem_file` 仅在 CDN 边缘证书需要自定义 CA 时使用，留空则用系统根证书。
 - 地址族偏好：`prefer_family` 支持 `ipv4` / `ipv6` / `auto`，默认 `ipv4`；域名解析后按偏好排序拨号，字面量地址直接使用
-- 会话密钥：TCP 路径由 TLS exporter 派生，QUIC / WebTransport 路径由 PSK + 双 nonce 经 HKDF 派生；均为标准库 AES-GCM 帧加密
+- 会话密钥：直连 TCP 由 TLS exporter 派生；QUIC / WebTransport / CDN WebSocket 由 PSK + 双 nonce 经 HKDF 派生；均为标准库 AES-GCM 帧加密
 - 认证：HMAC 挑战-响应 + 随机 nonce + 重放表；失败返回普通 404
 - 本地代理：HTTP CONNECT、SOCKS5 CONNECT、Socks5 远端 DNS
 - 服务端：普通用户进程，不安装 systemd 服务；直接访问 `/` 返回正常网页，未知路径返回 404
